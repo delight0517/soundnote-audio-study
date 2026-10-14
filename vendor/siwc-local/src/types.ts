@@ -76,6 +76,7 @@ export interface StreamResponseOptions {
   model: string;
   input: string | ResponseInputMessage[];
   instructions?: string;
+  reasoningEffort?: "none" | "minimal" | "low" | "medium" | "high" | "xhigh";
   signal?: AbortSignal;
   onDelta?: (delta: string) => void;
 }

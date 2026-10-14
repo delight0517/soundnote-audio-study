@@ -1,8 +1,16 @@
 {
   "name": "soundnote-local",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
-  "scripts": {"build:siwc": "tsc -p vendor/siwc-local/tsconfig.json"},
+  "main": "desktop/main.mjs",
+  "scripts": {
+    "build:siwc": "tsc -p vendor/siwc-local/tsconfig.json",
+    "desktop": "electron .",
+    "prepare:desktop-backend": "node desktop/prepare-backend.mjs",
+    "desktop:dist:win": "npm run build:siwc && npm run prepare:desktop-backend && electron-builder --win nsis --x64",
+    "desktop:dist:mac": "npm run build:siwc && npm run prepare:desktop-backend && electron-builder --mac dmg zip"
+  },
   "dependencies": {
     "@siwc/local": "file:vendor/siwc-local",
     "@primno/dpapi": "^2.0.1",
@@ -10,6 +18,64 @@
     "openai": "^7.21.0",
     "proper-lockfile": "^4.1.2"
   },
-  "devDependencies": {"@types/node": "^24.0.0", "typescript": "^7.0.2"},
-  "engines": {"node": ">=22"}
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "electron": "^40.0.0",
+    "electron-builder": "^26.0.0",
+    "typescript": "^7.0.2"
+  },
+  "build": {
+    "appId": "com.soundnote.desktop",
+    "productName": "소리노트",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "desktop/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "desktop-runtime/backend",
+        "to": "backend"
+      }
+    ],
+    "asar": true,
+    "npmRebuild": false,
+    "nodeGypRebuild": false,
+    "buildDependenciesFromSource": false,
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "SoundNote-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.education",
+      "artifactName": "SoundNote-${version}-${arch}.${ext}"
+    }
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "allowScripts": {
+    "electron@40.10.6": true,
+    "@primno/dpapi@2.0.1": true,
+    "electron-winstaller@5.4.0": true
+  }
 }

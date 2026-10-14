@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: soundnote
+    runtime: python
+    plan: standard
+    buildCommand: pip install -r requirements.txt
+    startCommand: python app.py
+    healthCheckPath: /healthz
+    disk:
+      name: soundnote-data
+      mountPath: /var/data
+      sizeGB: 10
+    envVars:
+      - key: SOUNDNOTE_PUBLIC
+        value: "1"
+      - key: SOUNDNOTE_DATA_ROOT
+        value: /var/data
+      - key: PYTHON_VERSION
+        value: 3.11.11
+      - key: SOUNDNOTE_SESSION_SECRET
+        generateValue: true
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false

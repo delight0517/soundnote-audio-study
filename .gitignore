@@ -1,6 +1,8 @@
 node_modules/
 .venv/
 work/
+desktop-runtime/
+release/
 __pycache__/
 *.py[cod]
 .env

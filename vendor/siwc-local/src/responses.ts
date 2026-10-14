@@ -42,6 +42,7 @@ export async function streamResponse(
       model: options.model,
       input: input.map((message) => ({ role: message.role, content: message.content })),
       ...(options.instructions !== undefined ? { instructions: options.instructions } : {}),
+      ...(options.reasoningEffort !== undefined ? { reasoning: { effort: options.reasoningEffort } } : {}),
       store: false,
       stream: true,
     }, { signal: requestSignal, headers: { accept: "text/event-stream" } }).withResponse();

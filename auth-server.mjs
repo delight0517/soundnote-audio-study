@@ -12,11 +12,13 @@ const appData = process.platform === 'win32'
   : process.platform === 'darwin'
     ? join(homedir(), 'Library', 'Application Support')
     : (process.env.XDG_DATA_HOME || join(homedir(), '.local', 'share'));
-const dataDir = join(appData, 'SoundNote', 'chatgpt');
+const dataDir = process.env.SOUNDNOTE_DATA_ROOT
+  ? join(process.env.SOUNDNOTE_DATA_ROOT, 'chatgpt')
+  : join(appData, 'SoundNote', 'chatgpt');
 const storageDir = join(dataDir, 'connections');
 
 let encryption;
-if (process.platform === 'win32') {
+if (process.platform === 'win32' && process.env.SOUNDNOTE_DPAPI !== '0') {
   const { Dpapi, isPlatformSupported } = await import('@primno/dpapi');
   encryption = {
     id: 'windows-dpapi-current-user-v1',
@@ -75,7 +77,7 @@ let inferenceRequests = 0;
 let lastModel = '-';
 const snapshot = async () => {
   const session = await client.getSession();
-  return { ...session, usageUrl: CHATGPT_USAGE_URL, requests: inferenceRequests, lastModel, models: session.sharing ? await client.listModels().then(x => x.map(m => m.slug)).catch(() => []) : [] , error: session.error?.message || lastAuthError || undefined };
+  return { ...session, usageUrl: CHATGPT_USAGE_URL, requests: inferenceRequests, lastModel, models: session.sharing ? await client.listModels().then(x => x.map(m => ({slug:m.slug,displayName:m.displayName}))).catch(() => []) : [], error: session.error?.message || lastAuthError || undefined };
 };
 const send = (res, status, body) => { const data=Buffer.from(JSON.stringify(body)); res.writeHead(status, {'Content-Type':'application/json; charset=utf-8','Content-Length':data.length,'Access-Control-Allow-Origin':'http://127.0.0.1:8765'}); res.end(data); };
 const server=createServer(async(req,res)=>{
@@ -90,18 +92,21 @@ const server=createServer(async(req,res)=>{
     }
     if(req.method==='POST'&&u.pathname==='/generate') {
       let body=''; for await(const chunk of req) {body+=chunk;if(body.length>80000)throw new Error('입력 텍스트가 너무 깁니다.');}
-      const {text,mode}=JSON.parse(body); if(typeof text!=='string'||!text.trim())throw new Error('전사 내용을 먼저 입력해 주세요.');
+      const {text,mode,model}=JSON.parse(body); if(typeof text!=='string'||!text.trim())throw new Error('전사 내용을 먼저 입력해 주세요.');
       const session=await client.getSession(); if(!session.sharing)throw new Error('ChatGPT 로그인과 플랜 사용 권한을 연결해 주세요.');
       const models=await client.listModels(); if(!models.length)throw new Error('사용 가능한 ChatGPT 모델을 찾지 못했습니다.');
+      const requested=typeof model==='string'&&models.some(item=>item.slug===model)?model:(models.find(item=>/mini|nano|flash/i.test(item.slug))?.slug||models[0].slug);
       const instructions=mode==='quiz'
         ? '주어진 기록으로 한국어 객관식 퀴즈 5문항을 만드세요. JSON 배열만 반환하세요. 각 문항은 question, options(4개), answer(0부터 시작하는 정답 인덱스), explanation 필드를 갖습니다.'
         : '주어진 기록을 한국어 JSON으로 구조화하세요. 주제, 요점, 용어, 할 일 항목을 포함하세요.';
-      const result=await client.streamResponse({model:models[0].slug,instructions,input:text.slice(0,50000)});
-      inferenceRequests++; lastModel=models[0].slug;
-      return send(res,200,{result:result.text,model:models[0].slug});
+      const reasoningEffort=body.reasoningEffort==='low'?'low':'none';
+      const result=await client.streamResponse({model:requested,instructions,input:text.slice(0,50000),reasoningEffort});
+      inferenceRequests++; lastModel=requested;
+      return send(res,200,{result:result.text,model:requested});
     }
     return send(res,404,{error:'Not found'});
   } catch(e){return send(res,400,{error:e?.message||String(e)});}
 });
-server.listen(8766,'127.0.0.1',()=>process.stdout.write('SoundNote ChatGPT connection service ready\n'));
+const port=Number(process.env.SOUNDNOTE_AUTH_PORT||8766);
+server.listen(port,'127.0.0.1',()=>process.stdout.write('SoundNote ChatGPT connection service ready\n'));
 process.on('SIGTERM',()=>server.close(()=>process.exit(0)));
