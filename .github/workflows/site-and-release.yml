@@ -87,7 +87,6 @@ jobs:
         with:
           name: soundnote-macos-${{ matrix.arch }}
           path: |
-            release/SoundNote-*-${{ matrix.arch }}.dmg
             release/SoundNote-*-${{ matrix.arch }}.zip
           if-no-files-found: error
 

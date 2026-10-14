@@ -1,6 +1,6 @@
 {
   "name": "soundnote-local",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "private": true,
   "type": "module",
   "main": "desktop/main.mjs",
@@ -8,8 +8,8 @@
     "build:siwc": "tsc -p vendor/siwc-local/tsconfig.json",
     "desktop": "electron .",
     "prepare:desktop-backend": "node desktop/prepare-backend.mjs",
-    "desktop:dist:win": "npm run build:siwc && npm run prepare:desktop-backend && electron-builder --win nsis --x64",
-    "desktop:dist:mac": "npm run build:siwc && npm run prepare:desktop-backend && electron-builder --mac zip"
+    "desktop:dist:win": "npm run build:siwc && npm run prepare:desktop-backend && electron-builder --publish never --win nsis --x64",
+    "desktop:dist:mac": "npm run build:siwc && npm run prepare:desktop-backend && electron-builder --publish never --mac zip"
   },
   "dependencies": {
     "@siwc/local": "file:vendor/siwc-local",

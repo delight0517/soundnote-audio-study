@@ -178,7 +178,7 @@ async function startDesktopApp() {
     const port = await unusedPort();
     const authPort = await unusedPort();
     serverUrl = `http://127.0.0.1:${port}`;
-    const authEnv = { ...process.env, SOUNDNOTE_DATA_ROOT: dataRoot, SOUNDNOTE_AUTH_PORT: String(authPort), SOUNDNOTE_DPAPI: app.isPackaged ? '0' : '1' };
+    const authEnv = { ...process.env, SOUNDNOTE_DATA_ROOT: dataRoot, SOUNDNOTE_AUTH_PORT: String(authPort), SOUNDNOTE_DPAPI: '1' };
     authService = utilityProcess.fork(join(appFilesRoot, 'auth-server.mjs'), [], { serviceName: 'SoundNote ChatGPT connection', env: authEnv, stdio: 'ignore' });
     authService.once('exit', (code) => { if (!quitting && code !== 0) console.error(`ChatGPT connection service exited with ${code}`); });
     await waitForAuthServer(authPort);

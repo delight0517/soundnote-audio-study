@@ -91,3 +91,7 @@ macOS에서는 `./start-macos.command`로 실행합니다.
 - 실제 Claude 및 Antigravity 생성 요청은 계정 사용량이 발생할 수 있어 이 작업에서는 전송하지 않았습니다.
 - faster-whisper small CPU int8 모델로 합성 한국어/영어 음성을 전사했고, 언어 자동 감지와 앱의 `/api/transcribe` 경로까지 확인했습니다.
 - 라이브러리 저장/열기/공유 화면과 macOS 시작 스크립트, Keychain 암호화 코드를 구현했습니다. macOS 실기기에서는 아직 실행 및 오디오 권한 흐름을 검증하지 못했습니다.
+
+### Desktop installer downloads
+
+Public installer releases are built by GitHub Actions for Windows x64 and macOS Apple Silicon/Intel. The macOS ZIP builds are unsigned; users may need to approve the app in macOS Privacy & Security on first launch. Windows builds package the per-user DPAPI module so ChatGPT credentials can be encrypted locally.

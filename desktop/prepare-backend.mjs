@@ -18,6 +18,7 @@ const runtimePackage = {
     jose: '^6.1.0',
     openai: '^7.21.0',
     'proper-lockfile': '^4.1.2',
+    ...(process.platform === 'win32' ? { '@primno/dpapi': '^2.0.1' } : {}),
   },
 };
 await writeFile(join(runtime, 'package.json'), JSON.stringify(runtimePackage, null, 2));
@@ -29,8 +30,10 @@ await new Promise((resolveRun, rejectRun) => {
   child.once('close', (code) => code === 0 ? resolveRun() : rejectRun(new Error(`npm install exited with ${code}`)));
 });
 
-const dpapiPackage = join(runtime, 'node_modules', '@primno', 'dpapi');
-await rm(dpapiPackage, { recursive: true, force: true });
+if (process.platform !== 'win32') {
+  const dpapiPackage = join(runtime, 'node_modules', '@primno', 'dpapi');
+  await rm(dpapiPackage, { recursive: true, force: true });
+}
 const localPackage = join(runtime, 'node_modules', '@siwc', 'local');
 await rm(localPackage, { recursive: true, force: true });
 await cp(join(runtime, 'vendor', 'siwc-local'), localPackage, { recursive: true });
