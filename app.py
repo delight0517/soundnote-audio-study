@@ -3,6 +3,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 import json, os, threading, urllib.request, urllib.error, uuid, subprocess, atexit, shutil
 import tempfile
+from datetime import datetime, timezone
 
 ROOT = Path(__file__).parent
 KEY = ""
@@ -11,19 +12,41 @@ LOCK = threading.Lock()
 TRANSCRIBE_LOCK = threading.Lock()
 WHISPER_MODEL = None
 WHISPER_ERROR = None
-MODEL_DIR = Path(os.environ.get('LOCALAPPDATA', str(ROOT))) / 'SoundNote' / 'models'
+if os.name == 'nt':
+    DATA_ROOT = Path(os.environ.get('LOCALAPPDATA', Path.home() / 'AppData' / 'Local')) / 'SoundNote'
+elif __import__('sys').platform == 'darwin':
+    DATA_ROOT = Path.home() / 'Library' / 'Application Support' / 'SoundNote'
+else:
+    DATA_ROOT = Path(os.environ.get('XDG_DATA_HOME', Path.home() / '.local' / 'share')) / 'SoundNote'
+MODEL_DIR = DATA_ROOT / 'models'
+LIBRARY_FILE = DATA_ROOT / 'library.json'
+
+def read_library():
+    try:
+        entries=json.loads(LIBRARY_FILE.read_text(encoding='utf-8'))
+        return entries if isinstance(entries,list) else []
+    except (OSError, ValueError):
+        return []
+
+def write_library(entries):
+    DATA_ROOT.mkdir(parents=True,exist_ok=True)
+    temp=LIBRARY_FILE.with_suffix('.tmp')
+    temp.write_text(json.dumps(entries,ensure_ascii=False,indent=2),encoding='utf-8')
+    try: os.chmod(temp,0o600)
+    except OSError: pass
+    temp.replace(LIBRARY_FILE)
 
 def find_native_cli(provider):
     """Find vendor executables only; never invoke user PATH .cmd/.bat shims."""
     names = ['claude'] if provider == 'claude' else ['agy', 'antigravity']
     for name in names:
         found = shutil.which(name)
-        if found and Path(found).suffix.lower() == '.exe': return found
+        if found and (os.name != 'nt' or Path(found).suffix.lower() == '.exe'): return found
     if provider == 'claude':
         root=Path.home()/'.local'/'share'/'claude'/'versions'
-        candidates = [Path.home()/'.local'/'bin'/'claude.exe', *sorted(root.glob('*/claude.exe'),reverse=True)]
+        candidates = [Path.home()/'.local'/'bin'/'claude.exe', *sorted(root.glob('*/claude.exe'),reverse=True)] if os.name == 'nt' else []
     else:
-        candidates = [Path(os.environ.get('LOCALAPPDATA',''))/'agy'/'bin'/'agy.exe']
+        candidates = [Path(os.environ.get('LOCALAPPDATA',''))/'agy'/'bin'/'agy.exe'] if os.name == 'nt' else []
     return next((str(p) for p in candidates if p.is_file()), None)
 
 class Handler(SimpleHTTPRequestHandler):
@@ -38,6 +61,9 @@ class Handler(SimpleHTTPRequestHandler):
             self.send_json({"connected": bool(KEY), **COUNTERS}); return
         if self.path == '/api/transcribe/status':
             self.send_json({"engine":"faster-whisper","model":"small","loaded":WHISPER_MODEL is not None,"loading":TRANSCRIBE_LOCK.locked(),"error":WHISPER_ERROR,"modelPath":str(MODEL_DIR)}); return
+        if self.path == '/api/library':
+            with LOCK: self.send_json({"items":read_library()})
+            return
         if self.path == '/api/chatgpt/status':
             try:
                 req=urllib.request.Request('http://127.0.0.1:8766/status')
@@ -80,7 +106,7 @@ class Handler(SimpleHTTPRequestHandler):
                 command=find_native_cli(provider)
                 if not command: return self.send_json({"error":"공식 CLI가 설치되어 있지 않습니다."},404)
                 args=[command,'-p','--output-format','text',prompt,'--tools',''] if provider=='claude' else [command,'-p',prompt,'--output-format','text','--disable-slash-commands','--mode','plan','--sandbox']
-                sandbox=Path(os.environ.get('LOCALAPPDATA',str(ROOT)))/'SoundNote'/'provider-workspace'
+                sandbox=DATA_ROOT/'provider-workspace'
                 sandbox.mkdir(parents=True,exist_ok=True)
                 proc=subprocess.run(args,cwd=str(sandbox),capture_output=True,text=True,encoding='utf-8',errors='replace',timeout=180,creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0))
                 if proc.returncode: return self.send_json({"error":(proc.stderr.strip() or 'CLI 요청이 실패했습니다.')[-1800:]},502)
@@ -91,6 +117,25 @@ class Handler(SimpleHTTPRequestHandler):
             except subprocess.TimeoutExpired: self.send_json({"error":"모델 요청 시간이 초과됐습니다."},504)
             except Exception as e: self.send_json({"error":"모델 요청 실패: "+str(e)},502)
             return
+        if self.path == '/api/library/save':
+            try:
+                body=json.loads(raw); text=body.get('text','').strip(); title=body.get('title','').strip()[:160]
+                if not text: return self.send_json({"error":"저장할 텍스트가 없습니다."},400)
+                if len(text)>100000: return self.send_json({"error":"텍스트는 100,000자 이하로 저장할 수 있습니다."},413)
+                item={"id":uuid.uuid4().hex,"title":title or text.splitlines()[0][:80] or '새 기록',"text":text,"createdAt":datetime.now(timezone.utc).isoformat()}
+                with LOCK:
+                    items=read_library(); items.insert(0,item); items=items[:500]; write_library(items)
+                return self.send_json({"item":item},201)
+            except Exception as e: return self.send_json({"error":"라이브러리 저장 실패: "+str(e)},500)
+        if self.path == '/api/library/delete':
+            try:
+                item_id=json.loads(raw).get('id','')
+                with LOCK:
+                    items=read_library(); updated=[item for item in items if item.get('id')!=item_id]
+                    if len(updated)==len(items): return self.send_json({"error":"기록을 찾지 못했습니다."},404)
+                    write_library(updated)
+                return self.send_json({"ok":True})
+            except Exception as e: return self.send_json({"error":"라이브러리 삭제 실패: "+str(e)},500)
         if self.path == '/api/connect':
             try: body=json.loads(raw); candidate=body.get('key','').strip()
             except Exception: return self.send_json({"error":"요청을 읽을 수 없습니다."},400)

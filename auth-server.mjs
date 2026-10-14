@@ -3,20 +3,60 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { join } from 'node:path';
 import { homedir } from 'node:os';
+import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
 import { createChatGPT, CHATGPT_USAGE_URL } from '@siwc/local';
-import { Dpapi, isPlatformSupported } from '@primno/dpapi';
 
 const execFileAsync = promisify(execFile);
-const dataDir = join(process.env.LOCALAPPDATA || join(homedir(), 'AppData', 'Local'), 'SoundNote', 'chatgpt');
+const appData = process.platform === 'win32'
+  ? (process.env.LOCALAPPDATA || join(homedir(), 'AppData', 'Local'))
+  : process.platform === 'darwin'
+    ? join(homedir(), 'Library', 'Application Support')
+    : (process.env.XDG_DATA_HOME || join(homedir(), '.local', 'share'));
+const dataDir = join(appData, 'SoundNote', 'chatgpt');
 const storageDir = join(dataDir, 'connections');
 
-// Protect OAuth tokens at rest with Windows DPAPI, scoped to the current Windows user.
-const encryption = {
-  id: 'windows-dpapi-current-user-v1',
-  isAvailable: () => process.platform === 'win32' && isPlatformSupported,
-  encrypt: (plaintext) => Dpapi.protectData(Buffer.from(plaintext, 'utf8'), null, 'CurrentUser'),
-  decrypt: (ciphertext) => Buffer.from(Dpapi.unprotectData(ciphertext, null, 'CurrentUser')).toString('utf8'),
-};
+let encryption;
+if (process.platform === 'win32') {
+  const { Dpapi, isPlatformSupported } = await import('@primno/dpapi');
+  encryption = {
+    id: 'windows-dpapi-current-user-v1',
+    isAvailable: () => isPlatformSupported,
+    encrypt: (plaintext) => Dpapi.protectData(Buffer.from(plaintext, 'utf8'), null, 'CurrentUser'),
+    decrypt: (ciphertext) => Buffer.from(Dpapi.unprotectData(ciphertext, null, 'CurrentUser')).toString('utf8'),
+  };
+} else if (process.platform === 'darwin') {
+  const service = 'com.soundnote.app';
+  const account = 'chatgpt-token-encryption-key';
+  const getKey = async () => {
+    try {
+      const { stdout } = await execFileAsync('/usr/bin/security', ['find-generic-password', '-s', service, '-a', account, '-w']);
+      return Buffer.from(stdout.trim(), 'base64');
+    } catch {
+      const key = randomBytes(32);
+      await execFileAsync('/usr/bin/security', ['add-generic-password', '-U', '-s', service, '-a', account, '-w', key.toString('base64')]);
+      return key;
+    }
+  };
+  encryption = {
+    id: 'macos-keychain-aes-256-gcm-v1',
+    isAvailable: async () => { await execFileAsync('/usr/bin/security', ['list-keychains']); return true; },
+    encrypt: async (plaintext) => {
+      const iv = randomBytes(12);
+      const cipher = createCipheriv('aes-256-gcm', await getKey(), iv);
+      const ciphertext = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
+      return Buffer.concat([Buffer.from([1]), iv, cipher.getAuthTag(), ciphertext]);
+    },
+    decrypt: async (input) => {
+      const value = Buffer.from(input);
+      if (value.length < 30 || value[0] !== 1) throw new Error('Unsupported encrypted credential format');
+      const decipher = createDecipheriv('aes-256-gcm', await getKey(), value.subarray(1, 13));
+      decipher.setAuthTag(value.subarray(13, 29));
+      return Buffer.concat([decipher.update(value.subarray(29)), decipher.final()]).toString('utf8');
+    },
+  };
+} else {
+  encryption = { id: 'unsupported-os-keychain-v1', isAvailable: () => false, encrypt: () => { throw new Error('Unsupported OS'); }, decrypt: () => { throw new Error('Unsupported OS'); } };
+}
 
 const client = createChatGPT({
   appName: 'SoundNote', appId: 'soundnote-local', redirectPort: 0,
@@ -24,7 +64,9 @@ const client = createChatGPT({
   openBrowser: async (url) => {
     const target = new URL(url);
     if (target.protocol !== 'https:' || target.hostname !== 'auth.openai.com') throw new Error('Unexpected sign-in destination.');
-    await execFileAsync('rundll32.exe', ['url.dll,FileProtocolHandler', url], { windowsHide: true });
+    if (process.platform === 'win32') await execFileAsync('rundll32.exe', ['url.dll,FileProtocolHandler', url], { windowsHide: true });
+    else if (process.platform === 'darwin') await execFileAsync('/usr/bin/open', [url]);
+    else await execFileAsync('xdg-open', [url]);
   },
 });
 
