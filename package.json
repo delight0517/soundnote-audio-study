@@ -9,7 +9,7 @@
     "desktop": "electron .",
     "prepare:desktop-backend": "node desktop/prepare-backend.mjs",
     "desktop:dist:win": "npm run build:siwc && npm run prepare:desktop-backend && electron-builder --win nsis --x64",
-    "desktop:dist:mac": "npm run build:siwc && npm run prepare:desktop-backend && electron-builder --mac dmg zip"
+    "desktop:dist:mac": "npm run build:siwc && npm run prepare:desktop-backend && electron-builder --mac zip"
   },
   "dependencies": {
     "@siwc/local": "file:vendor/siwc-local",
@@ -77,6 +77,7 @@
       }
     }
   },
+  "publish": null,
   "engines": {
     "node": ">=22"
   },
