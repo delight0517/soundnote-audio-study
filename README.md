@@ -6,15 +6,11 @@ Windows와 macOS용 로컬 오디오 기록 및 학습 도구입니다. 시스�
 
 화면 오른쪽 위 언어 메뉴에서 한국어, 영어, 일본어, 중국어(간체), 스페인어, 프랑스어, 독일어, 포르투갈어(브라질), 힌디어, 아랍어, 이탈리아어를 선택할 수 있습니다. 언어 선택은 기기에 저장되며, 지원하지 않는 브라우저 언어에서는 영어를 기본으로 표시합니다. 번역은 앱 안의 로컬 카탈로그에서 제공됩니다.
 
-## 공개 웹 버전
+## 공개 웹 버전 상태
 
-Render Blueprint의 `render.yaml`로 계정별 웹 서비스를 구성할 수 있습니다. 공개 모드는 Google OpenID Connect 로그인, 계정별 개인 라이브러리/녹음 디렉터리, HTTPS 보안 쿠키를 사용합니다. 사용자 간 녹음·텍스트 경로를 분리하고 오디오 저장량은 계정당 1GB, 개별 녹음은 250MB로 제한합니다. 오디오는 서버에 저장되고 로컬 Whisper small CPU 모델로 전사됩니다. 공개 웹 서비스는 개인 데스크톱과 달리 사용자의 브라우저에서 업로드한 오디오가 서비스 서버로 전송된다는 점을 알려 주세요.
+사용자는 비용 없는 공개 서비스를 요청했습니다. 이전 Render 구성은 영속 녹음 저장소에 유료 서비스가 필요하므로 제거했습니다. 무료 공개 호스팅 후보는 Cloudflare Workers Free, D1, R2, Workers AI 조합입니다. Cloudflare 무료 계층에도 일일 요청/AI 한도와 저장·데이터베이스 할당량이 있어 무제한 운영을 보장하지 않습니다. 이 저장소에는 아직 Cloudflare Worker 백엔드가 없고 공개 웹 URL도 배포되지 않았습니다.
 
-배포 전 Render에서 Google OAuth 웹 클라이언트를 만들고, 승인된 리다이렉트 URI에 `https://<Render 서비스 도메인>/auth/callback`을 등록하세요. Render 환경 변수 `GOOGLE_CLIENT_ID`와 `GOOGLE_CLIENT_SECRET`에 값을 안전하게 입력해야 합니다. Render는 서비스 URL을 `RENDER_EXTERNAL_URL`로 제공하고 Blueprint는 `/var/data`에 10GB 영속 디스크를 연결합니다. 영속 디스크는 유료 웹 서비스가 필요하며, 실제 공개 운영 전에 Render 대시보드에서 요금과 지역을 확인하세요.
-
-웹 버전 사용자는 Google 로그인 후 자신의 OpenAI API 키를 직접 연결합니다. 키는 서버 프로세스 메모리에만 유지되고 재시작 시 지워집니다. OpenAI API 과금은 사용자 OpenAI 계정에서 발생합니다. ChatGPT 플랜 OAuth, Claude Code/Antigravity CLI는 로컬 데스크톱에서만 사용할 수 있습니다. Google 로그인은 SoundNote 계정 식별용이며 OpenAI API 키를 대신하지 않습니다.
-
-로컬 단일 사용자 모드는 기본 설정 그대로 유지됩니다. 공개 모드를 직접 실행할 때는 HTTPS URL, 32자 이상의 `SOUNDNOTE_SESSION_SECRET`, Google OAuth 환경 변수와 `SOUNDNOTE_PUBLIC=1`을 설정하세요.
+공개 웹 백엔드를 완성하려면 Google OAuth, D1 사용자별 라이브러리, R2 오디오 저장, 무료 AI 한도 처리, 서비스별 요청량 제한을 Cloudflare Worker로 연결해야 합니다. 개인용 로컬 앱은 현재 그대로 쓸 수 있습니다. 사용자가 Google 로그인을 해도 SoundNote 로컬 라이브러리는 해당 기기에만 저장됩니다.
 
 ## 시작
 
