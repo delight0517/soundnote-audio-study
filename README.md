@@ -6,11 +6,13 @@ Windows와 macOS용 로컬 오디오 기록 및 학습 도구입니다. 시스�
 
 화면 오른쪽 위 언어 메뉴에서 한국어, 영어, 일본어, 중국어(간체), 스페인어, 프랑스어, 독일어, 포르투갈어(브라질), 힌디어, 아랍어, 이탈리아어를 선택할 수 있습니다. 언어 선택은 기기에 저장되며, 지원하지 않는 브라우저 언어에서는 영어를 기본으로 표시합니다. 번역은 앱 안의 로컬 카탈로그에서 제공됩니다.
 
-## 공개 웹 버전 상태
+## 공개 다운로드 사이트와 로그인
 
-사용자는 비용 없는 공개 서비스를 요청했습니다. 이전 Render 구성은 영속 녹음 저장소에 유료 서비스가 필요하므로 제거했습니다. 무료 공개 호스팅 후보는 Cloudflare Workers Free, D1, R2, Workers AI 조합입니다. Cloudflare 무료 계층에도 일일 요청/AI 한도와 저장·데이터베이스 할당량이 있어 무제한 운영을 보장하지 않습니다. 이 저장소에는 아직 Cloudflare Worker 백엔드가 없고 공개 웹 URL도 배포되지 않았습니다.
+GitHub Pages에서 무료 다운로드 사이트를 운영합니다: `https://delight0517.github.io/soundnote-audio-study/`. 공개 사이트는 GitHub Releases에서 Windows 설치 파일과 Apple Silicon/Intel Mac용 DMG를 찾아 다운로드 링크를 표시합니다. `Publish SoundNote site and desktop downloads` 워크플로를 수동 실행하면 Windows 및 두 Mac 아키텍처를 빌드해 Release에 올립니다. GitHub-hosted macOS 빌드는 서명하지 않으므로 첫 실행 때 Gatekeeper 안내가 표시될 수 있습니다.
 
-공개 웹 백엔드를 완성하려면 Google OAuth, D1 사용자별 라이브러리, R2 오디오 저장, 무료 AI 한도 처리, 서비스별 요청량 제한을 Cloudflare Worker로 연결해야 합니다. 개인용 로컬 앱은 현재 그대로 쓸 수 있습니다. 사용자가 Google 로그인을 해도 SoundNote 로컬 라이브러리는 해당 기기에만 저장됩니다.
+사이트의 Google 로그인은 다운로드 사이트에서 Google 계정을 표시하는 용도입니다. Google Identity Services의 웹 OAuth Client ID를 GitHub 저장소의 `GOOGLE_CLIENT_ID` Actions variable로 설정하면 버튼이 활성화됩니다. GitHub Pages에는 서버가 없으므로 이 로그인은 사용자별 서버 데이터 접근을 인증하지 않습니다. 녹음과 텍스트는 계속 각 기기에 저장되며 기기 간 동기화는 제공하지 않습니다. 클라우드 계정과 사용자별 저장소를 제공하려면 별도 API/DB 백엔드와 Google ID 토큰의 서버 검증을 배포해야 합니다.
+
+Google Cloud OAuth 웹 클라이언트의 승인된 JavaScript 출처에 `https://delight0517.github.io`를 추가합니다. Client ID는 공개 식별자이므로 저장소 variable로 둘 수 있습니다. 클라이언트 비밀값은 정적 사이트에 넣지 마세요.
 
 ## 시작
 

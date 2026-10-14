@@ -1,0 +1,116 @@
+name: Publish SoundNote site and desktop downloads
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to build and publish (for example v0.2.1)
+        required: true
+        default: v0.2.1
+
+permissions:
+  contents: read
+
+jobs:
+  pages:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/configure-pages@v5
+      - name: Add public Google client ID configuration
+        env:
+          GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
+        run: |
+          if [[ -n "$GOOGLE_CLIENT_ID" && ! "$GOOGLE_CLIENT_ID" =~ ^[0-9]+-[A-Za-z0-9_-]+\.apps\.googleusercontent\.com$ ]]; then
+            echo "GOOGLE_CLIENT_ID must be a Google Web OAuth client ID." >&2
+            exit 1
+          fi
+          printf 'window.SOUNDNOTE_CONFIG = { googleClientId: "%s" };\n' "$GOOGLE_CLIENT_ID" > site/config.js
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+      - name: Deploy GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+  build-windows:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run desktop:dist:win
+      - uses: actions/upload-artifact@v4
+        with:
+          name: soundnote-windows
+          path: release/SoundNote-Setup-*.exe
+          if-no-files-found: error
+
+  build-macos:
+    if: github.event_name == 'workflow_dispatch'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            runner: macos-15
+          - arch: x64
+            runner: macos-15-intel
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run desktop:dist:mac
+      - uses: actions/upload-artifact@v4
+        with:
+          name: soundnote-macos-${{ matrix.arch }}
+          path: |
+            release/SoundNote-*-${{ matrix.arch }}.dmg
+            release/SoundNote-*-${{ matrix.arch }}.zip
+          if-no-files-found: error
+
+  publish-release:
+    if: github.event_name == 'workflow_dispatch'
+    needs: [build-windows, build-macos]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: soundnote-*
+          path: release-assets
+          merge-multiple: true
+      - name: Publish release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+          RELEASE_SHA: ${{ github.sha }}
+        run: |
+          if ! gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" --target "$RELEASE_SHA" --title "SoundNote $RELEASE_TAG" --notes "Windows and macOS desktop installers. macOS builds are unsigned; see the README for first-open instructions."
+          fi
+          gh release upload "$RELEASE_TAG" release-assets/* --clobber

@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#f8f9f5">
+  <meta name="description" content="SoundNote — Windows와 macOS에서 오디오를 기록하고 지식으로 바꾸세요.">
+  <title>소리노트 — 오디오를 내 지식으로</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="config.js"></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#top" aria-label="SoundNote home"><span class="brand-mark">ㅅ</span><span>소리노트</span></a>
+    <nav><a href="#features" data-t="navFeatures">기능</a><a href="https://github.com/delight0517/soundnote-audio-study" data-t="navSource">오픈소스</a></nav>
+    <div class="top-actions"><select id="language" aria-label="언어"><option value="ko">한국어</option><option value="en">English</option><option value="ja">日本語</option><option value="zh-CN">简体中文</option><option value="es">Español</option><option value="fr">Français</option><option value="de">Deutsch</option><option value="pt-BR">Português</option><option value="hi">हिन्दी</option><option value="ar">العربية</option><option value="it">Italiano</option></select><button id="accountButton" class="account" hidden></button><div id="googleButton"></div></div>
+  </header>
+  <main id="top">
+    <section class="hero">
+      <div class="hero-copy"><span class="eyebrow" data-t="eyebrow">LISTEN · CAPTURE · LEARN</span><h1 data-t="headline">들리는 순간을<br><em>내 지식으로.</em></h1><p data-t="intro">수업, 회의, 온라인 강의의 오디오를 기록하고 한국어와 영어 텍스트로 바꿔 보세요. 전사는 내 기기에서 처리됩니다.</p><div class="hero-actions"><a class="button primary" href="#download" data-t="downloadCta">무료 앱 다운로드</a><a class="button secondary" href="https://github.com/delight0517/soundnote-audio-study" data-t="sourceCta">소스 코드 보기</a></div><div class="proof"><span>●</span><span data-t="proof">Windows · macOS · 11개 언어 · 로컬 전사</span></div></div>
+      <div class="preview" aria-hidden="true"><div class="preview-top"><span></span><span></span><span></span><b>SoundNote</b></div><div class="preview-body"><span class="preview-label" data-t="previewLabel">오늘의 기록</span><h2 data-t="previewTitle">오디오에서 핵심만</h2><div class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="preview-note"><span>01</span><p data-t="previewText">녹음 내용을 한국어와 영어로 전사하고, 요점과 퀴즈를 만들어 보세요.</p></div><div class="preview-tags"><b>Whisper</b><b data-t="localTag">기기 안에서 처리</b><b>MP3 · WAV · WebM</b></div></div></div>
+    </section>
+    <section class="download section" id="download"><div class="section-heading"><span class="eyebrow" data-t="downloadLabel">DOWNLOAD</span><h2 data-t="downloadTitle">내 컴퓨터에서 계속하세요.</h2><p data-t="downloadText">녹음은 기기에 저장됩니다. 최신 설치 파일은 공개 GitHub 릴리스에서 내려받을 수 있습니다.</p></div><div class="download-grid"><article class="download-card mac"><div class="platform-icon">⌘</div><div><h3>macOS</h3><p data-t="macText">Apple Silicon 또는 Intel Mac용</p></div><div class="mac-buttons"><a class="button primary" id="macArm" href="https://github.com/delight0517/soundnote-audio-study/releases/latest" data-t="appleDownload">Apple Silicon 다운로드</a><a class="button secondary" id="macIntel" href="https://github.com/delight0517/soundnote-audio-study/releases/latest" data-t="intelDownload">Intel 다운로드</a></div></article><article class="download-card"><div class="platform-icon">⊞</div><div><h3>Windows</h3><p data-t="winText">Windows 10/11 설치 파일</p></div><a class="button secondary" id="winDownload" href="https://github.com/delight0517/soundnote-audio-study/releases/latest" data-t="windowsDownload">Windows 다운로드</a></article></div><p class="release-status" id="releaseStatus" data-t="releaseLoading">최신 공개 버전을 확인하고 있습니다…</p><div class="mac-note"><b data-t="macFirstOpen">Mac에서 처음 열기</b><span data-t="macWarning">현재 macOS 앱은 개발자 서명과 공증이 없어, 첫 실행 시 macOS 보안 경고가 나타날 수 있습니다. 앱을 확인한 후 시스템 설정의 개인정보 보호 및 보안에서 열기를 승인해야 할 수 있습니다.</span></div></section>
+    <section class="features section" id="features"><div class="section-heading"><span class="eyebrow" data-t="featuresLabel">MADE FOR YOUR FLOW</span><h2 data-t="featuresTitle">가볍게 녹음하고, 오래 기억해요.</h2></div><div class="feature-grid"><article><span>01</span><h3 data-t="feature1Title">시스템 오디오와 마이크</h3><p data-t="feature1Text">컴퓨터 소리, 개인 마이크 또는 두 입력을 함께 녹음합니다.</p></article><article><span>02</span><h3 data-t="feature2Title">기기 안에서 전사</h3><p data-t="feature2Text">Whisper가 한국어와 영어 음성을 기기 안에서 텍스트로 바꿉니다.</p></article><article><span>03</span><h3 data-t="feature3Title">나만의 텍스트 라이브러리</h3><p data-t="feature3Text">요점을 저장하고 텍스트로 공유하세요. 오디오는 내 컴퓨터에 보관합니다.</p></article></div></section>
+    <section class="login-note"><div><span class="eyebrow" data-t="loginLabel">GOOGLE ACCOUNT</span><h2 data-t="loginTitle">Google 계정으로 사이트에 로그인</h2><p data-t="loginText">로그인은 이 다운로드 사이트에서 계정을 표시하는 용도입니다. 녹음과 텍스트는 각 기기에 저장되며 사이트 서버로 업로드되지 않습니다.</p></div><div id="loginState" class="login-state" data-t="loginConfig">Google 로그인을 준비하고 있습니다.</div></section>
+  </main>
+  <footer><a class="brand" href="#top"><span class="brand-mark">ㅅ</span><span>소리노트</span></a><span data-t="footerText">무료 · 오픈소스 · 로컬 우선</span><a href="https://github.com/delight0517/soundnote-audio-study">GitHub ↗</a></footer>
+</body>
+</html>
