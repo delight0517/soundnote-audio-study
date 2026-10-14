@@ -38,6 +38,10 @@
       {
         "from": "desktop-runtime/backend",
         "to": "backend"
+      },
+      {
+        "from": "desktop-runtime/backend-modules",
+        "to": "backend/node_modules"
       }
     ],
     "asar": true,
@@ -67,7 +71,10 @@
         "zip"
       ],
       "category": "public.app-category.education",
-      "artifactName": "SoundNote-${version}-${arch}.${ext}"
+      "artifactName": "SoundNote-${version}-${arch}.${ext}",
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "소리노트가 선택한 마이크의 오디오를 녹음하고 로컬에서 텍스트로 변환하기 위해 마이크 접근이 필요합니다."
+      }
     }
   },
   "engines": {

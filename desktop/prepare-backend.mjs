@@ -34,4 +34,7 @@ await rm(dpapiPackage, { recursive: true, force: true });
 const localPackage = join(runtime, 'node_modules', '@siwc', 'local');
 await rm(localPackage, { recursive: true, force: true });
 await cp(join(runtime, 'vendor', 'siwc-local'), localPackage, { recursive: true });
+const packagedModules = join(root, 'desktop-runtime', 'backend-modules');
+await rm(packagedModules, { recursive: true, force: true });
+await cp(join(runtime, 'node_modules'), packagedModules, { recursive: true });
 console.log(`Prepared desktop backend at ${runtime}`);

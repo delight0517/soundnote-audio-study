@@ -1,7 +1,7 @@
-import { app, BrowserWindow, Menu, Tray, dialog, nativeImage, shell, utilityProcess } from 'electron';
+import { app, BrowserWindow, Menu, Tray, dialog, nativeImage, session, shell, utilityProcess } from 'electron';
 import { spawn, spawnSync } from 'node:child_process';
 import { createServer } from 'node:net';
-import { existsSync, mkdirSync } from 'node:fs';
+import { appendFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { homedir } from 'node:os';
 
@@ -31,6 +31,7 @@ let bootMessage = '앱을 준비하고 있습니다…';
 
 function setBootMessage(message) {
   bootMessage = message;
+  try { appendFileSync(join(dataRoot, 'startup.log'), new Date().toISOString() + ' ' + message + '\n', 'utf8'); } catch {}
   if (!mainWindow || mainWindow.isDestroyed()) return;
   mainWindow.webContents.executeJavaScript(`document.querySelector('#message').textContent = ${JSON.stringify(message)}`).catch(() => {});
 }
@@ -47,26 +48,34 @@ function run(command, args, options = {}) {
 }
 
 function findSystemPython() {
+  if (process.platform === 'win32') {
+    const listed = spawnSync('py', ['-0p'], { windowsHide: true, encoding: 'utf8' });
+    const interpreters = (listed.stdout || '').split(/\r?\n/).flatMap((line) => {
+      const version = line.match(/-V:[^\s]*?(3\.\d+)/);
+      if (!version) return [];
+      const executable = line.slice(version.index + version[0].length).trim().replace(/^\*\s*/, '');
+      return existsSync(executable) ? [{ command: executable, prefix: [], version: version[1] }] : [];
+    }).filter((item) => Number(item.version.split('.')[1]) <= 13);
+    interpreters.sort((a, b) => Number(a.version.split('.')[1]) - Number(b.version.split('.')[1]));
+    if (interpreters.length) return interpreters[0];
+  }
   const options = process.platform === 'win32'
-    ? [['py', ['-3']], ['python', []]]
-    : [['python3', []], ['python', []]];
+    ? [['py', ['-3.13']], ['py', ['-3.12']], ['py', ['-3.11']], ['python', []]]
+    : [['python3.11', []], ['python3.12', []], ['python3.13', []], ['python3', []], ['python', []]];
   for (const [command, prefix] of options) {
-    const result = spawnSync(command, [...prefix, '-c', 'import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)'], { windowsHide: true });
+    const result = spawnSync(command, [...prefix, '-c', 'import sys; sys.exit(0 if (3, 10) <= sys.version_info[:2] <= (3, 13) else 1)'], { windowsHide: true });
     if (!result.error && result.status === 0) return { command, prefix };
   }
   return null;
 }
 
-function pythonEnvPath() {
-  return process.platform === 'win32' ? join(dataRoot, 'runtime', 'Scripts', 'python.exe') : join(dataRoot, 'runtime', 'bin', 'python');
-}
-
 async function choosePython() {
-  const runtimeDir = app.isPackaged ? join(dataRoot, 'runtime') : join(appRoot, '.venv');
+  const systemPython = findSystemPython();
+  if (!systemPython) throw new Error('Python 3.10~3.13이 필요합니다. https://www.python.org/downloads/ 에서 설치한 뒤 SoundNote를 다시 실행해 주세요.');
+  const pythonVersion = systemPython.version || (spawnSync(systemPython.command, [...systemPython.prefix, '-c', 'import sys;print(f"{sys.version_info.major}.{sys.version_info.minor}")'], { encoding: 'utf8', windowsHide: true }).stdout || '3.10').trim();
+  const runtimeDir = app.isPackaged ? join(dataRoot, `runtime-py${pythonVersion.replace('.', '')}`) : join(appRoot, '.venv');
   const python = process.platform === 'win32' ? join(runtimeDir, 'Scripts', 'python.exe') : join(runtimeDir, 'bin', 'python');
   const requirements = join(appFilesRoot, 'requirements.txt');
-  const systemPython = findSystemPython();
-  if (!systemPython) throw new Error('Python 3.10 이상이 필요합니다. https://www.python.org/downloads/ 에서 설치한 뒤 SoundNote를 다시 실행해 주세요.');
   if (!existsSync(python)) {
     setBootMessage('앱 전용 Python 환경을 준비하고 있습니다…');
     await run(systemPython.command, [...systemPython.prefix, '-m', 'venv', runtimeDir], { cwd: dataRoot });
@@ -78,7 +87,6 @@ async function choosePython() {
   }
   return python;
 }
-
 async function unusedPort() {
   const server = createServer();
   await new Promise((resolveListen, rejectListen) => {
@@ -189,6 +197,7 @@ async function startDesktopApp() {
     await mainWindow.loadURL(serverUrl);
     mainWindow.setTitle('소리노트 — 녹음에서 지식으로');
   } catch (error) {
+    try { appendFileSync(join(dataRoot, 'startup-error.log'), new Date().toISOString() + ' ' + (error?.stack || error?.message || String(error)) + '\n', 'utf8'); } catch {}
     setBootMessage(error.message);
     dialog.showErrorBox(productName, error.message);
   }
@@ -201,4 +210,22 @@ app.on('before-quit', () => {
   if (authService) authService.kill();
 });
 app.on('window-all-closed', () => {});
-app.whenReady().then(startDesktopApp);
+app.whenReady().then(() => {
+  const isSoundNoteOrigin = (webContents) => {
+    try { return new URL(webContents?.getURL() || '').hostname === '127.0.0.1'; } catch { return false; }
+  };
+  session.defaultSession.setPermissionRequestHandler((webContents, permission, callback, details) => {
+    const allowed = isSoundNoteOrigin(webContents) && (
+      (permission === 'media' && (!details.mediaTypes || details.mediaTypes.includes('audio')))
+      || permission === 'display-capture'
+    );
+    callback(allowed);
+  });
+  session.defaultSession.setPermissionCheckHandler((webContents, permission, requestingOrigin, details) => (
+    isSoundNoteOrigin(webContents) && (
+      (permission === 'media' && (!details.mediaTypes || details.mediaTypes.includes('audio')))
+      || permission === 'display-capture'
+    )
+  ));
+  startDesktopApp();
+});
