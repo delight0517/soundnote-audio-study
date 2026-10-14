@@ -95,3 +95,7 @@ macOS에서는 `./start-macos.command`로 실행합니다.
 ### Desktop installer downloads
 
 Public installer releases are built by GitHub Actions for Windows x64 and macOS Apple Silicon/Intel. The macOS ZIP builds are unsigned; users may need to approve the app in macOS Privacy & Security on first launch. Windows builds package the per-user DPAPI module so ChatGPT credentials can be encrypted locally.
+
+## App icon
+
+The SoundNote desktop app uses a custom forest-green soundwave-and-note icon. Platform assets are in `assets/` and are included in Windows and macOS release builds.

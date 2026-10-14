@@ -1,6 +1,6 @@
 {
   "name": "soundnote-local",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "private": true,
   "type": "module",
   "main": "desktop/main.mjs",
@@ -27,12 +27,14 @@
   "build": {
     "appId": "com.soundnote.desktop",
     "productName": "소리노트",
+    "icon": "assets/icon.png",
     "directories": {
       "output": "release"
     },
     "files": [
       "desktop/**/*",
-      "package.json"
+      "package.json",
+      "assets/**/*"
     ],
     "extraResources": [
       {
@@ -49,6 +51,7 @@
     "nodeGypRebuild": false,
     "buildDependenciesFromSource": false,
     "win": {
+      "icon": "assets/icon.ico",
       "target": [
         {
           "target": "nsis",
@@ -66,6 +69,7 @@
       "createStartMenuShortcut": true
     },
     "mac": {
+      "icon": "assets/icon.icns",
       "target": [
         "dmg",
         "zip"
