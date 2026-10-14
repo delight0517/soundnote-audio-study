@@ -1,0 +1,15 @@
+{
+  "name": "soundnote-local",
+  "private": true,
+  "type": "module",
+  "scripts": {"build:siwc": "tsc -p vendor/siwc-local/tsconfig.json"},
+  "dependencies": {
+    "@siwc/local": "file:vendor/siwc-local",
+    "@primno/dpapi": "^2.0.1",
+    "jose": "^6.1.0",
+    "openai": "^7.21.0",
+    "proper-lockfile": "^4.1.2"
+  },
+  "devDependencies": {"@types/node": "^24.0.0", "typescript": "^7.0.2"},
+  "engines": {"node": ">=22"}
+}
