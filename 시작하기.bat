@@ -11,7 +11,14 @@ if not exist "node_modules\@siwc\local" (
   call npm install
   if errorlevel 1 pause & exit /b 1
 )
+if not exist ".venv\Scripts\python.exe" (
+  echo Creating a private Python environment for local transcription...
+  python -m venv .venv
+  if errorlevel 1 pause & exit /b 1
+)
+call .venv\Scripts\python.exe -m pip install -r requirements.txt
+if errorlevel 1 pause & exit /b 1
 call npm run build:siwc
 if errorlevel 1 pause & exit /b 1
-python app.py
+.venv\Scripts\python.exe app.py
 if errorlevel 1 pause

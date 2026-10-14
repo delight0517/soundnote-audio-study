@@ -1,4 +1,6 @@
 node_modules/
+.venv/
+work/
 __pycache__/
 *.py[cod]
 .env

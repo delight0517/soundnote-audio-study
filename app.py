@@ -2,11 +2,16 @@
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 import json, os, threading, urllib.request, urllib.error, uuid, subprocess, atexit, shutil
+import tempfile
 
 ROOT = Path(__file__).parent
 KEY = ""
 COUNTERS = {"requests": 0, "audio_minutes": 0, "last_model": "-"}
 LOCK = threading.Lock()
+TRANSCRIBE_LOCK = threading.Lock()
+WHISPER_MODEL = None
+WHISPER_ERROR = None
+MODEL_DIR = Path(os.environ.get('LOCALAPPDATA', str(ROOT))) / 'SoundNote' / 'models'
 
 def find_native_cli(provider):
     """Find vendor executables only; never invoke user PATH .cmd/.bat shims."""
@@ -31,6 +36,8 @@ class Handler(SimpleHTTPRequestHandler):
     def do_GET(self):
         if self.path == '/api/status':
             self.send_json({"connected": bool(KEY), **COUNTERS}); return
+        if self.path == '/api/transcribe/status':
+            self.send_json({"engine":"faster-whisper","model":"small","loaded":WHISPER_MODEL is not None,"loading":TRANSCRIBE_LOCK.locked(),"error":WHISPER_ERROR,"modelPath":str(MODEL_DIR)}); return
         if self.path == '/api/chatgpt/status':
             try:
                 req=urllib.request.Request('http://127.0.0.1:8766/status')
@@ -107,20 +114,34 @@ class Handler(SimpleHTTPRequestHandler):
             except Exception as e: self.send_json({"error":"ChatGPT 서비스에 연결할 수 없습니다. 앱을 다시 시작해 주세요."},503)
             return
         if self.path == '/api/transcribe':
-            if not KEY: return self.send_json({"error":"먼저 API 키를 연결해 주세요."},401)
             boundary=self.headers.get('Content-Type','').split('boundary=')[-1]
             try:
                 segments=raw.split(('--'+boundary).encode()); filepart=next(x for x in segments if b'name="file"' in x)
                 head, payload=filepart.split(b'\r\n\r\n',1); payload=payload.rsplit(b'\r\n',1)[0]
-                filename='recording.webm'
-                for line in head.decode('utf-8','ignore').split('\r\n'):
-                    if 'filename=' in line: filename=line.split('filename="')[-1].split('"')[0]
-                form='--'+boundary+'\r\nContent-Disposition: form-data; name="model"\r\n\r\ngpt-4o-mini-transcribe\r\n--'+boundary+'\r\nContent-Disposition: form-data; name="file"; filename="'+filename.replace('"','')+'"\r\nContent-Type: application/octet-stream\r\n\r\n'
-                body=form.encode()+payload+b'\r\n--'+boundary+'--\r\n'
-                req=urllib.request.Request('https://api.openai.com/v1/audio/transcriptions',data=body,headers={'Authorization':'Bearer '+KEY,'Content-Type':'multipart/form-data; boundary='+boundary})
-                with urllib.request.urlopen(req,timeout=180) as r: result=json.loads(r.read())
-                COUNTERS['requests']+=1; COUNTERS['last_model']='gpt-4o-mini-transcribe'; self.send_json(result)
-            except Exception as e: self.send_json({"error":"전사 실패: "+str(e)},502)
+                if len(payload) < 128: return self.send_json({"error":"녹음 파일이 비어 있습니다."},400)
+                MODEL_DIR.mkdir(parents=True,exist_ok=True)
+                with TRANSCRIBE_LOCK:
+                    global WHISPER_MODEL, WHISPER_ERROR
+                    if WHISPER_MODEL is None:
+                        try:
+                            from faster_whisper import WhisperModel
+                            WHISPER_MODEL=WhisperModel('small',device='cpu',compute_type='int8',download_root=str(MODEL_DIR))
+                            WHISPER_ERROR=None
+                        except Exception as e:
+                            WHISPER_ERROR=str(e)
+                            raise RuntimeError('로컬 전사 모델을 준비하지 못했습니다. 인터넷 연결과 디스크 공간을 확인해 주세요. 상세: '+str(e))
+                    suffix='.webm'
+                    with tempfile.NamedTemporaryFile(suffix=suffix,delete=False) as tmp:
+                        tmp.write(payload); audio_path=tmp.name
+                    try:
+                        parts, info=WHISPER_MODEL.transcribe(audio_path,language=None,task='transcribe',beam_size=3,vad_filter=True)
+                        transcript=''.join(part.text for part in parts).strip()
+                    finally:
+                        try: os.unlink(audio_path)
+                        except OSError: pass
+                COUNTERS['requests']+=1; COUNTERS['last_model']='faster-whisper small · CPU int8'
+                self.send_json({"text":transcript,"language":info.language,"language_probability":info.language_probability,"model":"faster-whisper small · CPU int8","local":True})
+            except Exception as e: self.send_json({"error":"로컬 전사 실패: "+str(e)},502)
             return
         if self.path == '/api/generate':
             if not KEY: return self.send_json({"error":"먼저 API 키를 연결해 주세요."},401)
